@@ -1,31 +1,39 @@
 {
-  "name": "video-encoder",
-  "version": "1.0.0",
+  "name": "@vsc.eco/client",
+  "version": "0.0.1",
   "description": "",
   "main": "dist/index.js",
-  "dependencies": {},
   "devDependencies": {
-    "typescript": "^4.4.4",
-    "@types/jest": "^27.0.5",
     "@typescript-eslint/eslint-plugin": "^4.28.3",
     "@typescript-eslint/parser": "^4.28.3",
     "eslint": "^7.30.0",
     "eslint-config-prettier": "^8.3.0",
     "eslint-plugin-prettier": "^3.4.0",
-    "jest": "^27.0.6",
     "prettier": "^2.4.1",
-    "ts-jest": "^27.0.5",
     "ts-node": "^10.2.1",
-    "ts-node-dev": "^1.1.8"
+    "ts-node-dev": "^1.1.8",
+    "typescript": "^5.3.3"
   },
   "scripts": {
     "build": "tsc",
     "dev": "ts-node-dev src/index.ts",
+    "ts-node": "node --experimental-specifier-resolution=node --max-old-space-size=3072 --no-node-snapshot --loader ts-node/esm",
     "lint:fix": "eslint --fix \"src/**/*.{ts,tsx}\"",
-    "lint": "eslint \"src/**/*.{ts,tsx}\"",
-    "test:report": "sensible-browser ./coverage/lcov-report/index.html",
-    "test": "jest --coverage"
+    "lint": "eslint \"src/**/*.{ts,tsx}\""
   },
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "@hiveio/dhive": "^1.2.8",
+    "axios": "^1.6.7",
+    "dids": "^5.0.2",
+    "dotenv": "^16.4.1",
+    "graphql": "^16.8.1",
+    "key-did-provider-ed25519": "^4.0.2",
+    "key-did-provider-secp256k1": "^1.0.1",
+    "key-did-resolver": "^4.0.0",
+    "keychain-sdk": "^0.6.1",
+    "moment": "^2.30.1"
+  },
+  "type": "module"
 }

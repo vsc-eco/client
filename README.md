@@ -1,3 +1,3 @@
-# JS Typescript Template
+# VSC JavaScript Client
 
-A scaffold for new typescript projects.  Includes generic dev, lint, test, and build scripts.
+Access VSC APIs, create transactions, and more.
