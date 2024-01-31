@@ -7,7 +7,6 @@ import Axios from "axios";
 let hiveClient = new HiveClient('https://api.hive.blog')
 
 
-
 export function setHiveAPI(api: string | string[]) {
   hiveClient = new HiveClient(api)
 }
@@ -48,8 +47,7 @@ export class vTransaction {
       //Convert JWS into separate sig & tx data
       const protectedVal = JSON.parse(Buffer.from(jws.jws.signatures[0].protected,'base64url').toString())
       const did = protectedVal.kid.split('#')[0]
-      console.log(jws.jws.signatures)
-      console.log(protectedVal)
+     
       const sigs = [
         {
           alg: protectedVal.alg,
@@ -58,21 +56,25 @@ export class vTransaction {
           sig: jws.jws.signatures[0].signature
         }
       ]
-      console.log(sigs)
       const sigEncoded = Buffer.from((await encodePayload({
         __v: 'vsc-sig',
         sigs
       })).linkedBlock).toString('base64url')
-      const encodedTx = Buffer.from(jws.linkedBlock).toString('base64url');
-      console.log(encodedTx, sigEncoded)
+      // const encodedTx = Buffer.from(jws.linkedBlock).toString('base64url');
 
-      const {data} = await Axios.post(`${client._args.api}/api/v0/graphql`, {
-        query: '',
-        variables: {
-          sig: sigEncoded
-        }
-      })
-      const submitResult = data.data;
+      // const convertJws = await convertTxJws({
+      //   sig: sigEncoded,
+      //   tx: encodedTx
+      // });
+
+      // const verifResult = await client._did.verifyJWS(convertJws.jws as any)
+      // const {data} = await Axios.post(`${client._args.api}/api/v0/graphql`, {
+      //   query: '',
+      //   variables: {
+      //     sig: sigEncoded
+      //   }
+      // })
+      // const submitResult = data.data;
     }
   }
 }

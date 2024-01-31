@@ -29,6 +29,7 @@
     "dids": "^5.0.2",
     "dotenv": "^16.4.1",
     "graphql": "^16.8.1",
+    "ipld-dag-cbor": "^1.0.1",
     "key-did-provider-ed25519": "^4.0.2",
     "key-did-provider-secp256k1": "^1.0.1",
     "key-did-resolver": "^4.0.0",
