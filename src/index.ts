@@ -1,8 +1,11 @@
 import { DID } from "dids";
-import {Client as HiveClient} from '@hiveio/dhive'
+import {Client as HiveClient, HivemindAPI, PrivateKey} from '@hiveio/dhive'
 import { KeychainSDK } from "keychain-sdk";
 import { encodePayload } from 'dag-jose-utils'
 import Axios from "axios";
+import Ajv from 'ajv'
+import { submitTxQuery } from "./queries";
+import { TransactionContainerV2, TransactionDbType, TxSchema } from "./types";
 
 let hiveClient = new HiveClient('https://api.hive.blog')
 
@@ -11,22 +14,61 @@ export function setHiveAPI(api: string | string[]) {
   hiveClient = new HiveClient(api)
 }
 
-/**
- * Future work: Tx builder, easily craft highly complicated transactions
- */
 class TxBuilder {
 
+  setPayer(payer: string): this {
+
+    return this;
+  }
+
+  /**
+   * Not implemented in VSC network yet
+   * @param name 
+   * @param options 
+   * @returns 
+   */
+  addIntent(name: string, options?: any): this {
+
+
+    return this
+  }
+
+  /**
+   * Not implemented in VSC network yet
+   * @param name 
+   * @returns 
+   */
+  removeIntent(name: string):this {
+
+    return this
+  }
+
+
+  setOp():this {
+    
+    return this
+  }
+
+  asTx() {
+
+  }
 }
+
+const ajv = new Ajv({})
 
 export class vTransaction {
   signature: object | null
-  txData: object | null
+  txData: TransactionContainerV2 | null
   constructor() {
     this.txData = null;
   }
 
 
   async setTx(txData) {
+    // if(!ajv.validate(TxSchema, txData)) {
+    //   throw new Error('Invalid TX data')
+    // }
+
     this.txData = txData
   }
 
@@ -39,10 +81,36 @@ export class vTransaction {
       throw new Error('No TX specified!')
     }
     if(client._args.loginType === 'hive') {
-
+      await hiveClient.broadcast.json({
+        id: 'vsc.tx',
+        required_auths: [client.hiveName],
+        required_posting_auths: [],
+        json: JSON.stringify({
+          __t: 'vsc-onchain',
+          __v: '0.1'
+        })
+      }, PrivateKey.fromString(client.secrets.posting))
     } else if(client._args.loginType === 'offchain') {
+
+      const txData:TransactionContainerV2 = {
+        __v: '0.2',
+        __t: 'vsc-tx',
+        headers: {
+          nonce: 0,
+          required_auths: [
+            client._did.id
+          ],
+        },
+        tx: {
+          op: 'call_contract',
+          payload: {},
+          type: TransactionDbType.input
+        }
+      }
+
+
       //Create JWS signed by DID
-      const jws = await client._did.createDagJWS(this.txData)
+      const jws = await client._did.createDagJWS(txData)
       
       //Convert JWS into separate sig & tx data
       const protectedVal = JSON.parse(Buffer.from(jws.jws.signatures[0].protected,'base64url').toString())
@@ -57,10 +125,10 @@ export class vTransaction {
         }
       ]
       const sigEncoded = Buffer.from((await encodePayload({
-        __v: 'vsc-sig',
+        __t: 'vsc-sig',
         sigs
       })).linkedBlock).toString('base64url')
-      // const encodedTx = Buffer.from(jws.linkedBlock).toString('base64url');
+      const encodedTx = Buffer.from(jws.linkedBlock).toString('base64url');
 
       // const convertJws = await convertTxJws({
       //   sig: sigEncoded,
@@ -68,13 +136,18 @@ export class vTransaction {
       // });
 
       // const verifResult = await client._did.verifyJWS(convertJws.jws as any)
-      // const {data} = await Axios.post(`${client._args.api}/api/v0/graphql`, {
-      //   query: '',
-      //   variables: {
-      //     sig: sigEncoded
-      //   }
-      // })
-      // const submitResult = data.data;
+      const {data} = await Axios.post(`${client._args.api}/api/v1/graphql`, {
+        query: submitTxQuery,
+        variables: {
+          tx: encodedTx,
+          sig: sigEncoded
+        }
+      })
+      console.log(data)
+      if(data.data) {
+        const submitResult = data.data.submitTransactionV1;
+        console.log(submitResult)
+      }
     }
   }
 }

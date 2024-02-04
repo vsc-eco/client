@@ -25,6 +25,7 @@
   "license": "ISC",
   "dependencies": {
     "@hiveio/dhive": "^1.2.8",
+    "ajv": "^6.12.6",
     "axios": "^1.6.7",
     "dids": "^5.0.2",
     "dotenv": "^16.4.1",

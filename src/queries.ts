@@ -1,7 +1,7 @@
 
-export const submitTx = `
-query SubmitTx($sig: String, $tx: String) {
-    submitTx(sig: $sig, $tx: String) {
+export const submitTxQuery = `
+query SubmitTx($sig: String!, $tx: String!) {
+    submitTransactionV1(sig: $sig, tx: $tx) {
         id
     }
 }
