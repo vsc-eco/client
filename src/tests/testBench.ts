@@ -6,6 +6,7 @@ import { encodePayload } from 'dag-jose-utils'
 import Axios from 'axios'
 import {vClient, vTransaction} from '..'
 
+
 void (async () => {
     const client = new vClient({
         api: 'http://127.0.0.1:1337',
@@ -19,26 +20,11 @@ void (async () => {
     await client.login(did)
     const tx = new vTransaction()
     tx.setTx({
-        __t: 'vsc-tx',
-        __v: '0.2',
-        headers: {
-            payer: 'hello world',
-            lock_block: 81_999_000,
-            required_auths: [
-                'did:key:z6MkmzUVuC9rdXtDgrfUDRJqBZKUAwpAy3k1dDscsmvK5ftb'
-            ],
-            //Tuple of transaction intent enum and arguments as querystring
-            intents: [
-                ['money.spend', '']
-            ],
-        },
-        tx: { 
-            op: 'contract_mint',
-            payload: {
-                amount: '100T',
-                to: 'did:key:z6MkmzUVuC9rdXtDgrfUDRJqBZKUAwpAy3k1dDscsmvK5ftb'
-            },
-            type: 'input'
+        op: 'call_contract',
+        action: 'testJSON',
+        contract_id: "vs41q9c3ygq38nldzh209g5aw0knllm45px5ycrwx5sv0jxddmd9ve4r0z6frcvv9h2j",
+        payload: {
+            hello: 'World'
         }
     })
     await tx.broadcast(client);

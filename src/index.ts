@@ -6,6 +6,7 @@ import Axios from "axios";
 import Ajv from 'ajv'
 import { submitTxQuery } from "./queries";
 import { TransactionContainerV2, TransactionDbType, TxSchema } from "./types";
+import { getNonce } from "./utils";
 
 let hiveClient = new HiveClient('https://api.hive.blog')
 
@@ -54,17 +55,25 @@ class TxBuilder {
   }
 }
 
-const ajv = new Ajv({})
+interface callContractTx {
+  op: 'call_contract'
+  action: string
+  contract_id: string
+  payload: any
+}
+
+
+type TransactionDataCommon = callContractTx 
 
 export class vTransaction {
   signature: object | null
-  txData: TransactionContainerV2 | null
+  txData: TransactionDataCommon | null
   constructor() {
     this.txData = null;
   }
 
 
-  async setTx(txData) {
+  async setTx(txData: TransactionDataCommon) {
     // if(!ajv.validate(TxSchema, txData)) {
     //   throw new Error('Invalid TX data')
     // }
@@ -86,8 +95,12 @@ export class vTransaction {
         required_auths: [client.hiveName],
         required_posting_auths: [],
         json: JSON.stringify({
-          __t: 'vsc-onchain',
-          __v: '0.1'
+          __t: 'vsc-tx',
+          __v: '0.1',
+          headers: {
+
+          },
+          tx: this.txData
         })
       }, PrivateKey.fromString(client.secrets.posting))
     } else if(client._args.loginType === 'offchain') {
@@ -96,16 +109,13 @@ export class vTransaction {
         __v: '0.2',
         __t: 'vsc-tx',
         headers: {
-          nonce: 0,
+          type: TransactionDbType.input,
+          nonce: await getNonce(client._did.id, `${client._args.api}/api/v1/graphql`),
           required_auths: [
             client._did.id
           ],
         },
-        tx: {
-          op: 'call_contract',
-          payload: {},
-          type: TransactionDbType.input
-        }
+        tx: this.txData
       }
 
 

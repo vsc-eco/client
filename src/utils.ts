@@ -1,3 +1,4 @@
+import Axios from 'axios'
 import DagCbor from 'ipld-dag-cbor'
 
 export async function convertTxJws(args: {
@@ -39,3 +40,21 @@ export async function convertTxJws(args: {
     }
     return jwsDagOutput
   }
+
+  
+export async function getNonce(keyGroup, api) {
+    const {data} = await Axios.post(api, {
+        query:`
+            query SubmitTx($keyGroup: [String]!) {
+                getAccountNonce(keyGroup: $keyGroup) {
+                    nonce
+                }
+            }
+        `,
+        variables: {
+            keyGroup 
+        }
+    })
+    return data.data.getAccountNonce.nonce
+}
+

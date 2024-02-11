@@ -36,11 +36,13 @@ export interface TransactionContainerV2 {
         required_auths: Array<string>
         //Tuple of transaction intent enum and arguments as querystring
         intents?: null | Array<[TransactionIntent, string]> 
-    }
-    tx: { 
-        op: string
-        payload: any // cid of ContractInput, ContractOutput or ContractUpdate and so on..
         type: TransactionDbType
+    }
+    tx: {
+      contract_id?: string
+      action?: string
+      op: string
+      payload: any // cid of ContractInput, ContractOutput or ContractUpdate and so on..
     }
 }
 
