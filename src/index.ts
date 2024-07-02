@@ -68,6 +68,7 @@ type TransactionDataCommon = callContractTx
 export class vTransaction {
   signature: object | null
   txData: TransactionDataCommon | null
+  cachedNonce: any;
   constructor() {
     this.txData = null;
   }
@@ -85,7 +86,7 @@ export class vTransaction {
 
   }
   
-  async broadcast(client: vClient) {
+  async broadcast(client: vClient, options?: {cacheNonce?: boolean}) {
     if(!this.txData) {
       throw new Error('No TX specified!')
     }
@@ -97,26 +98,33 @@ export class vTransaction {
         json: JSON.stringify({
           __t: 'vsc-tx',
           __v: '0.1',
+          net_id: 'testnet/0bf2e474-6b9e-4165-ad4e-a0d78968d20c',
           headers: {
 
           },
           tx: this.txData
         })
-      }, PrivateKey.fromString(client.secrets.posting))
+      }, PrivateKey.fromString(client.secrets.active || client.secrets.posting))
     } else if(client._args.loginType === 'offchain') {
+
+      if(!this.cachedNonce) {
+        this.cachedNonce = await getNonce(client._did.id, `${client._args.api}/api/v1/graphql`)
+      }
 
       const txData:TransactionContainerV2 = {
         __v: '0.2',
         __t: 'vsc-tx',
         headers: {
           type: TransactionDbType.input,
-          nonce: await getNonce(client._did.id, `${client._args.api}/api/v1/graphql`),
+          nonce: this.cachedNonce,
           required_auths: [
             client._did.id
           ],
         },
         tx: this.txData
       }
+
+      this.cachedNonce = this.cachedNonce + 1
 
 
       //Create JWS signed by DID
@@ -222,7 +230,7 @@ export class vClient {
       this._keychain = new KeychainSDK(window);
       this.loggedIn = true
     } else if (args.provider === 'direct') {
-      if(!args.posting || !args.active) {
+      if(!args.posting && !args.active) {
         throw new Error('Missing posting or active key')
       }
       this.secrets.posting = args.posting
