@@ -58,3 +58,98 @@ export async function getNonce(keyGroup, api) {
     return data.data.getAccountNonce.nonce
 }
 
+
+/**
+ * Converts Number to uint256 or other type where applicable
+ * @param type 
+ * @returns 
+ */
+function eip712Type(type: string) { 
+    if(type === 'number') { 
+        return 'uint256'
+    } else {
+        return type
+    }
+}
+
+function convertJsTypeToTypedData(a: Object, prefix?: string) {
+    const types = []
+    const values = []
+    if(typeof a === 'object') {
+
+        for(let key in a) {
+            const value = a[key]
+            
+            console.log(typeof value, 'object')
+            if(typeof value === 'object') {
+                if(Array.isArray(value)) { 
+                  values.push({
+                      name: key,
+                      //Check first element and determine if array
+                      type: `${eip712Type(typeof value[0])}[]`
+                  })
+                } else {
+                  const {values: returnedValues, types: returnedTypes} = convertJsTypeToTypedData(value, `${prefix}.${key}`)
+                  
+                  console.log(prefix, key, values, types)
+                  //Push subtypes
+                  types.push(...returnedTypes)
+                  //Push self type
+                  types.push({
+                    name: `${prefix}.${key}`,
+                    definition: returnedValues
+                  })
+                  values.push({
+                    name: key,
+                    type: `${prefix}.${key}`
+                  })
+                }
+            } else {
+                values.push({
+                    name: key,
+                    type: eip712Type(typeof value)
+                })
+            }
+        }
+
+        return {
+          values: values,
+          types: types
+        }
+    } else {
+        return {
+          values: [
+            {
+              name: prefix,
+              type: eip712Type(typeof a)
+            }
+          ]
+        }
+    }
+}
+
+export function convertEIP712Type(a: any, type: string = 'tx_container_v0') {
+  const typedDataPartial = convertJsTypeToTypedData(a, type)
+
+  let obj = {}
+  for(let value of typedDataPartial.types) {
+    obj[value.name] = value.definition
+  }
+
+  const out =  {
+      EIP712Domain: [
+        { name: "name", type: "string" },
+      ],
+      types: {
+        ...obj,
+        [type]: typedDataPartial.values
+      },
+      primaryType: type,
+      message: a,
+      domain: {
+        name: "vsc.network"
+      }
+  }
+  return out
+}
+
