@@ -6,7 +6,11 @@ import Axios from "axios";
 import Ajv from 'ajv'
 import { submitTxQuery } from "./queries";
 import { TransactionContainerV2, TransactionDbType, TxSchema } from "./types";
-import { getNonce } from "./utils";
+import { convertEIP712Type, getNonce } from "./utils";
+import Web3, { Web3BaseWalletAccount } from "web3";
+import {hashTypedData, recoverTypedDataAddress, recoverAddress} from 'viem'
+import { encode, decode } from '@ipld/dag-cbor'
+
 
 let hiveClient = new HiveClient('https://api.hive.blog')
 
@@ -65,6 +69,8 @@ interface callContractTx {
 
 type TransactionDataCommon = callContractTx 
 
+
+
 export class vTransaction {
   signature: object | null
   txData: TransactionDataCommon | null
@@ -86,11 +92,11 @@ export class vTransaction {
 
   }
   
-  async broadcast(client: vClient, options?: {cacheNonce?: boolean}) {
+  async broadcast(client: vClient, options?: {cacheNonce?: boolean}): Promise<{id: string | null}> {
     if(!this.txData) {
       throw new Error('No TX specified!')
     }
-    if(client._args.loginType === 'hive') {
+    if(client.loginInfo.type === 'hive') {
       await hiveClient.broadcast.json({
         id: 'vsc.tx',
         required_auths: [client.hiveName],
@@ -105,8 +111,9 @@ export class vTransaction {
           tx: this.txData
         })
       }, PrivateKey.fromString(client.secrets.active || client.secrets.posting))
-    } else if(client._args.loginType === 'offchain') {
+    } else if(client.loginInfo.type === 'offchain') {
 
+      
       if(!this.cachedNonce) {
         this.cachedNonce = await getNonce(client._did.id, `${client._args.api}/api/v1/graphql`)
       }
@@ -123,6 +130,7 @@ export class vTransaction {
         },
         tx: this.txData
       }
+      const types = convertEIP712Type(txData)
 
       this.cachedNonce = this.cachedNonce + 1
 
@@ -164,10 +172,79 @@ export class vTransaction {
       console.log(data)
       if(data.data) {
         const submitResult = data.data.submitTransactionV1;
+        return {
+          id: submitResult.id
+        }
+      }
+    } else if(client.loginInfo.type === 'evm') {
+      const did = `did:pkh:eip155:1${client.loginInfo.id}`
+      if(!this.cachedNonce) {
+        this.cachedNonce = await getNonce(did, `${client._args.api}/api/v1/graphql`)
+      }
+      const txData:TransactionContainerV2 = {
+        __v: '0.2',
+        __t: 'vsc-tx',
+        headers: {
+          type: TransactionDbType.input,
+          nonce: this.cachedNonce,
+          required_auths: [
+            `did:pkh:eip155:1:${client.loginInfo.id}`
+          ],
+        },
+        tx: this.txData
+      }
+      const types = convertEIP712Type(decode(encode(txData)))
+
+      console.log(types)
+      const hash = hashTypedData({
+        ...types as any
+      })
+      const signature = client.loginInfo.wallet.sign(hash).signature
+
+      console.log('recovered address', await recoverTypedDataAddress({
+        ...types as any,
+        signature
+      }), client.web3.eth.accounts.recover(hash, signature), await recoverAddress({hash, signature: signature as any}))
+
+      // const signature = await client.web3.eth.signTypedData(client.loginInfo.id, {
+      //   ...types,
+      // } as any)
+
+      const sigs = [
+        {
+          t: 'eip191',
+          //Key id copy
+          s: signature
+        }
+      ]
+      console.log(txData, sigs)
+      const sigEncoded = Buffer.from((await encodePayload({
+        __t: 'vsc-sig',
+        sigs
+      })).linkedBlock).toString('base64url')
+      const txEncoded = Buffer.from((await encodePayload(txData)).linkedBlock).toString('base64url');
+
+      const {data} = await Axios.post(`${client._args.api}/api/v1/graphql`, {
+        query: submitTxQuery,
+        variables: {
+          tx: txEncoded,
+          sig: sigEncoded
+        }
+      })
+      console.log(data)
+      if(data.data) {
+        const submitResult = data.data.submitTransactionV1;
         console.log(submitResult)
+        return {
+          id: submitResult.id
+        }
       }
     }
-  }
+    return {
+      id: null
+    }
+  } 
+
 }
 
 export interface vClientArgs {
@@ -192,14 +269,21 @@ export class vClient {
   }
   _keychain: KeychainSDK;
   hiveName: string;
+  web3: Web3;
+  loginInfo: {
+    wallet?: Web3BaseWalletAccount; 
+    id: any; 
+    type: any; 
+};
 
   constructor(args: vClientArgs) {
     this.loggedIn = false;
     this._args = args;
 
-    this.secrets = {
-
-    }
+    this.loginInfo = {
+      id: null,
+      type: null
+    } 
   }
 
   async call() {
@@ -239,7 +323,15 @@ export class vClient {
     } else {
       throw new Error('Invalid Provider')
     }
-    this.hiveName = args.hiveName
+    this.loginInfo.id = args.hiveName
+    this.loginInfo.type = 'evm'
+  }
+
+  async loginWithETH(web3: Web3, address, secret) {
+      this.web3 = web3;
+      this.loginInfo.id = address
+      this.loginInfo.type = 'evm'
+      this.loginInfo.wallet = web3.eth.accountProvider.privateKeyToAccount(secret)
   }
   
   async _sign() {
