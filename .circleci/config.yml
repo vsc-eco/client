@@ -1,0 +1,30 @@
+version: 2.1
+
+jobs:
+  publish:
+    docker:
+      - image: circleci/node:16
+    steps:
+      - checkout
+      - run:
+          name: Install dependencies
+          command: npm install
+      - run:
+          name: Build
+          command: npm run build
+      - run:
+          name: Publish to npm
+          command: |
+            echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+            npm publish
+
+workflows:
+  version: 2
+  publish_on_tag:
+    jobs:
+      - publish:
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v.*/
