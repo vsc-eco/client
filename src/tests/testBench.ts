@@ -4,7 +4,7 @@ import { DID } from "dids";
 import KeyResolver from 'key-did-resolver'
 import { encodePayload } from 'dag-jose-utils'
 import Axios from 'axios'
-import {vClient, vTransaction} from '..'
+import {hexToUint8Array, vClient, vTransaction} from '..'
 
 
 void (async () => {
@@ -12,7 +12,7 @@ void (async () => {
         api: 'http://127.0.0.1:1337',
         loginType: 'offchain'
     })
-    const secret = Buffer.from('44ab29dc82f227322cb924cdc66815da8edc9cb0b409f5ced26ced57e6077aa6', 'hex')
+    const secret = hexToUint8Array('44ab29dc82f227322cb924cdc66815da8edc9cb0b409f5ced26ced57e6077aa6')
     const keyPrivate = new Ed25519Provider(secret)
     const did = new DID({ provider: keyPrivate, resolver: KeyResolver.getResolver() })
     await did.authenticate()

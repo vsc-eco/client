@@ -6,11 +6,12 @@ import Axios from "axios";
 import Ajv from 'ajv'
 import { submitTxQuery } from "./queries";
 import { TransactionContainerV2, TransactionDbType, TxSchema } from "./types";
-import { convertEIP712Type, getNonce } from "./utils";
+import { base64UrlToUint8Array, convertEIP712Type, getNonce, hexToUint8Array, uint8ArrayToBase64Url } from "./utils";
 import Web3, { Web3BaseWalletAccount } from "web3";
 import {hashTypedData, recoverTypedDataAddress, recoverAddress} from 'viem'
 import { encode, decode } from '@ipld/dag-cbor'
 
+export { hexToUint8Array } from './utils'
 
 let hiveClient = new HiveClient('https://api.hive.blog')
 
@@ -68,8 +69,6 @@ interface callContractTx {
 
 
 type TransactionDataCommon = callContractTx 
-
-
 
 export class vTransaction {
   signature: object | null
@@ -139,7 +138,10 @@ export class vTransaction {
       const jws = await client._did.createDagJWS(txData)
       
       //Convert JWS into separate sig & tx data
-      const protectedVal = JSON.parse(Buffer.from(jws.jws.signatures[0].protected,'base64url').toString())
+      const arr = base64UrlToUint8Array(jws.jws.signatures[0].protected)
+      const textDecoder = new TextDecoder();
+      const decodedString = textDecoder.decode(arr);
+      const protectedVal = JSON.parse(decodedString)
       const did = protectedVal.kid.split('#')[0]
      
       const sigs = [
@@ -150,12 +152,12 @@ export class vTransaction {
           sig: jws.jws.signatures[0].signature
         }
       ]
-      const sigEncoded = Buffer.from((await encodePayload({
+      const sigEncoded = uint8ArrayToBase64Url((await encodePayload({
         __t: 'vsc-sig',
         sigs
-      })).linkedBlock).toString('base64url')
-      const encodedTx = Buffer.from(jws.linkedBlock).toString('base64url');
+      })).linkedBlock)
 
+      const encodedTx = uint8ArrayToBase64Url(jws.linkedBlock);
       // const convertJws = await convertTxJws({
       //   sig: sigEncoded,
       //   tx: encodedTx
@@ -218,11 +220,11 @@ export class vTransaction {
         }
       ]
       console.log(txData, sigs)
-      const sigEncoded = Buffer.from((await encodePayload({
+      const sigEncoded = uint8ArrayToBase64Url((await encodePayload({
         __t: 'vsc-sig',
         sigs
-      })).linkedBlock).toString('base64url')
-      const txEncoded = Buffer.from((await encodePayload(txData)).linkedBlock).toString('base64url');
+      })).linkedBlock)
+      const txEncoded = uint8ArrayToBase64Url((await encodePayload(txData)).linkedBlock);
 
       const {data} = await Axios.post(`${client._args.api}/api/v1/graphql`, {
         query: submitTxQuery,
@@ -298,6 +300,8 @@ export class vClient {
       throw new Error('DID Not authenticated! Must run await did.authenticate()')
     }
     this._did = did;
+    this.loginInfo.id = did.id
+    this.loginInfo.type = 'offchain'
   }
 
   async loginWithHive(args: {
